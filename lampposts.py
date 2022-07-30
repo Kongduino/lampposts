@@ -33,6 +33,11 @@
 
 import urllib.request, json, sys, math, re
 import gmplot
+import requests
+from secret import API_KEY
+# you need to create a file called secret.py
+# and add one line:
+# API_KEY = "<your mapquest key>"
 
 deviceLocation = "https://www.hko.gov.hk/common/hko_data/smart-lamppost/files/smart_lamppost_met_device_location.json"
 deviceType = "https://www.hko.gov.hk/common/hko_data/smart-lamppost/files/smart_lamppost_met_device_type.json"
@@ -141,6 +146,7 @@ def loadDicts():
     sys.exit()
 
 if __name__ == "__main__":
+  locations=[]
   devices=""
   types=""
   details=""
@@ -151,6 +157,10 @@ if __name__ == "__main__":
   myLat = 22.405140
   myLng = 114.139799
   closest = closestDataPoint(myLat, myLng)
+  j = len(latitude_list)
+  for i in range (0, j):
+    locations.append(str(latitude_list[i])+","+str(longitude_list[i]))
+  locations = "||".join(locations)
   # calculate the center point from the 4 corners
   centerPointLat = (closest['maxLat'] + closest['minLat']) / 2
   centerPointLng = (closest['maxLng'] + closest['minLng']) / 2
@@ -161,6 +171,8 @@ if __name__ == "__main__":
   # draw the map as HTML
   gmap1.draw("mymap.html")
   # Display results
+  mk = str(closest['LP_LATITUDE'])+","+str(closest['LP_LONGITUDE'])
+  locations = locations.replace(mk, mk+"|marker-start")
   print("\nClosest lamp post: " + closest['LP_NUMBER'])
   print(" • coords: " + str(closest['LP_LATITUDE'])+", " + str(closest['LP_LONGITUDE']))
   print(" • distance: " + str(closest['distance'])+" km")
@@ -192,3 +204,10 @@ if __name__ == "__main__":
   for x in deets['DATA_TYPE_COLLECTED']:
     print(" • " + datapointsNames[x] + " = " + stats[x] + datapointsUnits[x])
   print(" • Timestamp: " + re.sub(r'(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)', r'\1/\2/\3 \4:\5:\6', stats['TS']))
+  mapquest = "https://www.mapquestapi.com/staticmap/v5/map?key="+API_KEY+"&center="+str(centerPointLat)+","+str(centerPointLng)+"&size=1280,800&zoom=14&locations="+locations+"&defaultMarker=marker-num"
+  print(" • Mapquest: "+mapquest)
+  img = requests.get(mapquest).content
+  f = open("mymap.jpg", "wb")
+  f.write(img)
+  f.close()
+
