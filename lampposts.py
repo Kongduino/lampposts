@@ -75,8 +75,8 @@ def getDetails(lp_type):
   return 0
 
 def closestDataPoint(lat1, lon1):
-  # "LP_LATITUDE": 22.32187, "LP_LONGITUDE": 114.211365
   global devices, latitude_list, longitude_list
+  # We are going to compute the box that encloses all points
   minLat = 100000
   maxLat = -100000
   minLng = 100000
@@ -88,6 +88,7 @@ def closestDataPoint(lat1, lon1):
     x = devices[i]
     lat = x['LP_LATITUDE']
     lng = x['LP_LONGITUDE']
+    # calculate the 4 corners
     if lat<minLat:
       minLat = lat
     if lat>maxLat:
@@ -96,14 +97,17 @@ def closestDataPoint(lat1, lon1):
       minLng = lng
     if lng>maxLng:
       maxLng = lng
+    # add the current lam post to the list
     latitude_list.append(lat)
     longitude_list.append(lng)
     
+    # calculate distance with the reference coords
     d=haversine(lat1, lon1, lat , lng)
     if(d<dl):
       dl=d
       dp=x
       dp['distance']=dl
+  # return the closest point with "extras"
   dp['minLat'] = minLat
   dp['maxLat'] = maxLat
   dp['minLng'] = minLng
@@ -147,11 +151,16 @@ if __name__ == "__main__":
   myLat = 22.405140
   myLng = 114.139799
   closest = closestDataPoint(myLat, myLng)
+  # calculate the center point from the 4 corners
   centerPointLat = (closest['maxLat'] + closest['minLat']) / 2
   centerPointLng = (closest['maxLng'] + closest['minLng']) / 2
+  # prepare a gmap with the center point
   gmap1 = gmplot.GoogleMapPlotter(centerPointLat, centerPointLng, 13)
+  # scatter the lamp posts
   gmap1.scatter(latitude_list, longitude_list, '#FF0000', size = 50, marker = True)
+  # draw the map as HTML
   gmap1.draw("mymap.html")
+  # Display results
   print("\nClosest lamp post: " + closest['LP_NUMBER'])
   print(" • coords: " + str(closest['LP_LATITUDE'])+", " + str(closest['LP_LONGITUDE']))
   print(" • distance: " + str(closest['distance'])+" km")
@@ -163,12 +172,10 @@ if __name__ == "__main__":
   print(deets)
   dev_type = deets['dev']
   print(" • type: " + deets['TYPE_NAME'])
-#   print(" • Datapoints:")
-#   for x in deets['DATA_TYPE_COLLECTED']:
-#     print("  - ["+x+"]: "+datapointsNames[x])
   logs = "https://data.weather.gov.hk/weatherAPI/smart-lamppost/smart-lamppost.php?pi="+closest['LP_NUMBER']+"&di="+dev_type;
   print(" • "+logs)
   result = ""
+  # get the current datapoints
   try:
     with urllib.request.urlopen(logs) as url:
       result = url.read().decode()
