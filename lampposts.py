@@ -1,5 +1,3 @@
-#https://s3-ap-southeast-1.amazonaws.com/historical-resource-archive/2020/08/14/https%253A%252F%252Fwww.hko.gov.hk%252Fcommon%252Fhko_data%252Fsmart-lamppost%252Ffiles%252Fsmart_lamppost_met_device_location.json/1713
-#
 #http://www.weather.gov.hk/en/abouthko/opendata_intro.htm
 #
 #https://data.gov.hk/en-data/dataset/hk-hko-rss-smart-lamppost-weather-data
@@ -34,6 +32,7 @@
 #  }
 
 import urllib.request, json, sys, math, re
+import gmplot
 
 deviceLocation = "https://www.hko.gov.hk/common/hko_data/smart-lamppost/files/smart_lamppost_met_device_location.json"
 deviceType = "https://www.hko.gov.hk/common/hko_data/smart-lamppost/files/smart_lamppost_met_device_type.json"
@@ -70,23 +69,45 @@ def getDetails(lp_type):
   dt = 0
   for i in range(0, ln):
     x = details[i]
-    if lp_type == x['DEVICE_ID']:
+    if dev == x['DEVICE_ID']:
+      x['dev'] = dev
       return x
   return 0
 
 def closestDataPoint(lat1, lon1):
   # "LP_LATITUDE": 22.32187, "LP_LONGITUDE": 114.211365
-  global devices
+  global devices, latitude_list, longitude_list
+  minLat = 100000
+  maxLat = -100000
+  minLng = 100000
+  maxLng = -100000
   dl=10000000
   dp=""
   ln = len(devices)
   for i in range(0, ln):
     x = devices[i]
-    d=haversine(lat1, lon1, x['LP_LATITUDE'], x['LP_LONGITUDE'])
+    lat = x['LP_LATITUDE']
+    lng = x['LP_LONGITUDE']
+    if lat<minLat:
+      minLat = lat
+    if lat>maxLat:
+      maxLat = lat
+    if lng<minLng:
+      minLng = lng
+    if lng>maxLng:
+      maxLng = lng
+    latitude_list.append(lat)
+    longitude_list.append(lng)
+    
+    d=haversine(lat1, lon1, lat , lng)
     if(d<dl):
       dl=d
       dp=x
       dp['distance']=dl
+  dp['minLat'] = minLat
+  dp['maxLat'] = maxLat
+  dp['minLng'] = minLng
+  dp['maxLng'] = maxLng
   return dp
 
 def loadDicts():
@@ -119,8 +140,18 @@ if __name__ == "__main__":
   devices=""
   types=""
   details=""
+  latitude_list = []
+  longitude_list = []
   loadDicts()
-  closest = closestDataPoint(22.3310, 114.2046)
+  print(devices)
+  myLat = 22.405140
+  myLng = 114.139799
+  closest = closestDataPoint(myLat, myLng)
+  centerPointLat = (closest['maxLat'] + closest['minLat']) / 2
+  centerPointLng = (closest['maxLng'] + closest['minLng']) / 2
+  gmap1 = gmplot.GoogleMapPlotter(centerPointLat, centerPointLng, 13)
+  gmap1.scatter(latitude_list, longitude_list, '#FF0000', size = 50, marker = True)
+  gmap1.draw("mymap.html")
   print("\nClosest lamp post: " + closest['LP_NUMBER'])
   print(" • coords: " + str(closest['LP_LATITUDE'])+", " + str(closest['LP_LONGITUDE']))
   print(" • distance: " + str(closest['distance'])+" km")
@@ -129,19 +160,28 @@ if __name__ == "__main__":
   if deets == 0:
     print("Failed to get details. Aborting...")
     sys.exit()
+  print(deets)
+  dev_type = deets['dev']
   print(" • type: " + deets['TYPE_NAME'])
 #   print(" • Datapoints:")
 #   for x in deets['DATA_TYPE_COLLECTED']:
 #     print("  - ["+x+"]: "+datapointsNames[x])
-  logs = "https://data.weather.gov.hk/weatherAPI/smart-lamppost/smart-lamppost.php?pi="+closest['LP_NUMBER']+"&di="+lp_type;
+  logs = "https://data.weather.gov.hk/weatherAPI/smart-lamppost/smart-lamppost.php?pi="+closest['LP_NUMBER']+"&di="+dev_type;
   print(" • "+logs)
+  result = ""
   try:
     with urllib.request.urlopen(logs) as url:
-      logs = json.loads(url.read().decode())
+      result = url.read().decode()
+      logs = json.loads(result)
   except:
     print("\nCouldn't load device logs. Aborting...")
     sys.exit()
-  stats = logs['BODY']['HKO']
+  try:
+    stats = logs['BODY']['HKO']
+  except:
+    print("JSON Error")
+    print(result)
+    sys.exit()
   for x in deets['DATA_TYPE_COLLECTED']:
     print(" • " + datapointsNames[x] + " = " + stats[x] + datapointsUnits[x])
   print(" • Timestamp: " + re.sub(r'(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)', r'\1/\2/\3 \4:\5:\6', stats['TS']))
