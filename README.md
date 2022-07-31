@@ -39,3 +39,5 @@ Closest lamp post: DF3644
  • Wind Direction = 4°
  • Timestamp: 2022/07/30 16:50:47
 ```
+
+![map sample](mymap_sample.jpg)
