@@ -120,6 +120,46 @@ def closestDataPoint(lat1, lon1):
   dp['maxLng'] = maxLng
   return dp
 
+def retrieveLampost(ID):
+  global devices, latitude_list, longitude_list, myLat, myLng
+  # We are going to compute the box that encloses all points
+  minLat = 100000
+  maxLat = -100000
+  minLng = 100000
+  maxLng = -100000
+  dp = 0
+  ln = len(devices)
+  for i in range(0, ln):
+    x = devices[i]
+    lat = x['LP_LATITUDE']
+    lng = x['LP_LONGITUDE']
+    # calculate the 4 corners
+    if lat<minLat:
+      minLat = lat
+    if lat>maxLat:
+      maxLat = lat
+    if lng<minLng:
+      minLng = lng
+    if lng>maxLng:
+      maxLng = lng
+    # add the current lam post to the list
+    latitude_list.append(lat)
+    longitude_list.append(lng)
+    
+    d=haversine(myLat, myLng, lat , lng)
+    if x['LP_NUMBER'] == ID:
+      dp=x
+      dp['distance']=d
+  # return the closest point with "extras" if found
+  # if not return 0
+  if dp == 0:
+    return 0
+  dp['minLat'] = minLat
+  dp['maxLat'] = maxLat
+  dp['minLng'] = minLng
+  dp['maxLng'] = maxLng
+  return dp
+
 def loadDicts():
   global devices, types, details
   try:
@@ -127,7 +167,7 @@ def loadDicts():
     with urllib.request.urlopen(deviceLocation) as url:
       devices = json.loads(url.read().decode())
   except:
-    print("\nCouldn't load device list. Aborting...")
+    print("\nCouldn't load device list. Aborting...\n")
     sys.exit()
 
   try:
@@ -135,7 +175,7 @@ def loadDicts():
     with urllib.request.urlopen(deviceType) as url:
       types = json.loads(url.read().decode())
   except:
-    print("\nCouldn't load device type list. Aborting...")
+    print("\nCouldn't load device type list. Aborting...\n")
     sys.exit()
 
   try:
@@ -143,7 +183,7 @@ def loadDicts():
     with urllib.request.urlopen(deviceDetails) as url:
       details = json.loads(url.read().decode())
   except:
-    print("\nCouldn't load device details list. Aborting...")
+    print("\nCouldn't load device details list. Aborting...\n")
     sys.exit()
 
 if __name__ == "__main__":
@@ -154,10 +194,40 @@ if __name__ == "__main__":
   latitude_list = []
   longitude_list = []
   loadDicts()
-  print(devices)
+  #print(devices)
   myLat = 22.331033
   myLng = 114.181639
-  closest = closestDataPoint(myLat, myLng)
+  if len(sys.argv) == 1:
+    print("No arguments – normal run.")
+    closest = closestDataPoint(myLat, myLng)
+  elif len(sys.argv) > 2:
+    print("Too many arguments – Aborting...\n")
+    sys.exit()
+  else:
+    k,v = sys.argv[1].split('=')
+    #print(f"{k} = {v}")
+    if v == "" or k == "":
+      print("Incorrect parameters! Aborting...\n")
+      sys.exit()
+    if k == "id":
+      print(f"Looking up Lamp Post ID {v}")
+      closest = retrieveLampost(v)
+      if closest == 0:
+        print("Lamp Post ID not found! Aborting...\n")
+        sys.exit()
+    elif k == "gps":
+      c = v.split(',')
+      if len(c) != 2:
+        print("Wrong format! Use 'lat,long'! Aborting...\n")
+        sys.exit()
+      print(f"Setting gps coords to {v}")
+      myLat = float(c[0])
+      myLng = float(c[1])
+      closest = closestDataPoint(myLat, myLng)
+    else:
+      print("Unknow command! Aborting...\n")
+      sys.exit()
+
   j = len(latitude_list)
   for i in range (0, j):
     locations.append(str(latitude_list[i])+","+str(longitude_list[i]))
@@ -181,7 +251,7 @@ if __name__ == "__main__":
   lp_type = closest['LP_TYPE']
   deets = getDetails(lp_type)
   if deets == 0:
-    print("Failed to get details. Aborting...")
+    print("Failed to get details. Aborting...\n")
     sys.exit()
   print(deets)
   dev_type = deets['dev']
@@ -195,7 +265,7 @@ if __name__ == "__main__":
       result = url.read().decode()
       logs = json.loads(result)
   except:
-    print("\nCouldn't load device logs. Aborting...")
+    print("\nCouldn't load device logs. Aborting...\n")
     sys.exit()
   try:
     stats = logs['BODY']['HKO']
@@ -215,4 +285,5 @@ if __name__ == "__main__":
   f = open(mapFile, "wb")
   f.write(img)
   f.close()
+  print("")
   os.system("open "+mapFile)
