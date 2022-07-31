@@ -75,7 +75,7 @@ Closest lamp post: GF3837
 
 ```
 
-![result](mymap_GF3837_20220731143036.jpg)
+![result](mymap_GF3837.jpg)
 
 * `gps=lat,lng`
 
@@ -102,4 +102,4 @@ Closest lamp post: GF3831
 
 ```
 
-![result](mymap_GF3831_20220731143018.jpg)
+![result](mymap_GF3831.jpg)
