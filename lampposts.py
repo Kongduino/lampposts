@@ -31,7 +31,7 @@
 #    }
 #  }
 
-import urllib.request, json, sys, math, re
+import urllib.request, json, sys, math, re, os
 import gmplot
 import requests
 from secret import API_KEY
@@ -43,6 +43,7 @@ deviceLocation = "https://www.hko.gov.hk/common/hko_data/smart-lamppost/files/sm
 deviceType = "https://www.hko.gov.hk/common/hko_data/smart-lamppost/files/smart_lamppost_met_device_type.json"
 deviceDetails = "https://www.hko.gov.hk/common/hko_data/smart-lamppost/files/smart_lamppost_met_device_element.json"
 datapointsNames = {"WD": "Wind Direction", "T0": "Air Temperature", "RH": "Relative Humidity", "W0": "10-minute wind speed"}
+shortDatapointsNames = {"WD": "Wind", "T0": "Temp", "RH": "Humidity", "W0": "Wind speed"}
 datapointsUnits = {"WD": "°", "T0": "°", "RH": "%", "W0": " km/h"}
 
 def toRad(x):
@@ -154,8 +155,8 @@ if __name__ == "__main__":
   longitude_list = []
   loadDicts()
   print(devices)
-  myLat = 22.405140
-  myLng = 114.139799
+  myLat = 22.331033
+  myLng = 114.181639
   closest = closestDataPoint(myLat, myLng)
   j = len(latitude_list)
   for i in range (0, j):
@@ -173,6 +174,7 @@ if __name__ == "__main__":
   # Display results
   mk = str(closest['LP_LATITUDE'])+","+str(closest['LP_LONGITUDE'])
   locations = locations.replace(mk, mk+"|marker-start")
+  locations += "||"+str(myLat)+","+str(myLng)+"|flag-you-FF0000-FF0000"
   print("\nClosest lamp post: " + closest['LP_NUMBER'])
   print(" • coords: " + str(closest['LP_LATITUDE'])+", " + str(closest['LP_LONGITUDE']))
   print(" • distance: " + str(closest['distance'])+" km")
@@ -201,13 +203,16 @@ if __name__ == "__main__":
     print("JSON Error")
     print(result)
     sys.exit()
+  banner = "&banner="
   for x in deets['DATA_TYPE_COLLECTED']:
     print(" • " + datapointsNames[x] + " = " + stats[x] + datapointsUnits[x])
+    banner +=  shortDatapointsNames[x] + ": " + stats[x] + datapointsUnits[x] + " "
   print(" • Timestamp: " + re.sub(r'(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)', r'\1/\2/\3 \4:\5:\6', stats['TS']))
-  mapquest = "https://www.mapquestapi.com/staticmap/v5/map?key="+API_KEY+"&center="+str(centerPointLat)+","+str(centerPointLng)+"&size=1280,800&zoom=14&locations="+locations+"&defaultMarker=marker-num"
+  mapquest = "https://www.mapquestapi.com/staticmap/v5/map?key="+API_KEY+"&center="+str(centerPointLat)+","+str(centerPointLng)+"&size=1280,800&zoom=14&locations="+locations+"&defaultMarker=marker-num"+banner
   print(" • Mapquest: "+mapquest)
   img = requests.get(mapquest).content
-  f = open("mymap.jpg", "wb")
+  mapFile = "mymap_"+closest['LP_NUMBER']+"_"+stats['TS']+".jpg"
+  f = open(mapFile, "wb")
   f.write(img)
   f.close()
-
+  os.system("open "+mapFile)
